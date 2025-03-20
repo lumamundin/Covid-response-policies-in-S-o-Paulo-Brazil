@@ -1,0 +1,210 @@
+# Script para analise das politicas de fechamento durante a pandemia usando a base OxCGRT
+
+install.packages("ggplot2")  # Instala o pacote
+library(ggplot2)  # Carrega o pacote
+
+install.packages("dplyr")  # Instala o pacote
+library(dplyr)  # Carrega o pacote
+
+install.packages ("tidyr")
+library(tidyr)
+
+install.packages("ggridges")  # Instala o pacote
+library(ggridges)             # Carrega o pacote
+
+install.packages("lubridate")  # Instala o pacote
+library(lubridate)              # Carrega o pacote
+
+dados_citytotal <- read.csv("C:/Users/lumam/OneDrive/Documentos/Mestrado PPGS-USP/Análise de bancos de dados/OxCGRT_compact_SP_citytotal.csv", sep = ";")
+
+                  head(dados_citytotal)  # Mostra as primeiras linhas do data frame
+
+                  summary(dados_citytotal)  # Exibe um resumo estatístico dos dados
+
+            # Ajustando a base de dados para otimizar as análises
+                  
+# Alterando o formato das datas para dd/mm/aaaa
+                  
+                  dados_citytotal$Date <- as.Date(as.character(dados_citytotal$Date), format = "%Y%m%d")
+                  
+                  
+# Calculando os casos diários de infecções por covid                   
+
+                  dados_citytotal <- dados_citytotal %>%
+                  mutate(Casos_Diarios = ConfirmedCases - lag(ConfirmedCases, default = 0))  # Calcula os casos diários
+                  
+                                    
+# Para comparação, é necessário deixar os dados no formato "longo" (tidy data) usando pivot_longer()
+                  
+                  dados_long_citytotal <- pivot_longer(dados_citytotal, 
+                                                       cols = c(C1M_School.closing, C2M_Workplace.closing, C3M_Cancel.public.events, C4M_Restrictions.on.gatherings, C5M_Close.public.transport, C6M_Stay.at.home.requirements, C7M_Restrictions.on.internal.movement, C8EV_International.travel.controls),  # Colunas a transformar
+                                                       names_to = "PoliticasDeFechamento",        # Nome da nova coluna de políticas
+                                                       values_to = "Valor")                           # Nome da nova coluna de valores
+                  dados_long_citytotal$Date <- as.Date(dados_long_citytotal$Date)
+       
+                             
+         # Análises       
+
+# Mudança do Grau da C1M_School.closing ao Longo do Tempo, Gráfico de área
+                  
+                  ggplot(dados_citytotal, aes(x = Date, y = C1M_School.closing)) +
+                    geom_area() +
+                    labs(title = "Mudanca do Grau da Política C1 ao Longo do Tempo",
+                         x = "Data",
+                         y = "Grau da Política") +
+                    theme_minimal()
+                  
+        
+# Gráfico de linhas para comparação das mudanças de grau das políticas de fechamento
+                  
+                  
+                    ggplot(dados_long_citytotal, aes(x = Date, y = Valor, color = PoliticasDeFechamento)) +
+                    geom_line() +  # Cria as areas
+                    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 1)) +  # Ajusta o eixo Y
+                    scale_color_viridis_d() +  # Usa a paleta viridis para as cores
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Data",
+                         y = "Valor",
+                         color = "Políticas de Fechamento") +
+                    theme_minimal()
+                  
+# Gráfico de areas para comparação das mudanças de grau das políticas de fechamento
+                  
+                  ggplot(dados_long_citytotal, aes(x = Date, y = Valor, fill = PoliticasDeFechamento)) +
+                    geom_area(alpha = 0.5) +  # Cria as áreas com transparência
+                    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 0.5)) +  # Ajusta o eixo Y
+                    scale_fill_viridis_d() +  # Usa a paleta viridis para as cores
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Data",
+                         y = "Valor",
+                         fill = "Políticas de Fechamento") +
+                    theme_minimal()
+
+# Ridgeline Plot para comparação das mudanças de grau das políticas de fechamento, usando data e valor - erro
+                  
+                  ggplot(dados_long_citytotal, aes(x = Date, y = Valor, fill = PoliticasDeFechamento)) +
+                    geom_density_ridges(alpha = 0.5, scale = 0.9) +  # Ajusta transparência e altura das cristas
+                    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 1)) +  # Ajusta o eixo X
+                    scale_x_date(date_labels = "%b %Y", date_breaks = "1 year") +  # Formata o eixo Y
+                    scale_fill_viridis_d() +  # Usa a paleta viridis
+                    facet_wrap(~ PoliticasDeFechamento, ncol = 2) +  # Separa as políticas em painéis
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Valor",
+                         y = "Data",
+                         fill = "PoliticasDeFechamento") +
+                    theme_minimal()
+                  
+                  
+# Ridgeline Plot para comparação das mudanças de grau das políticas de fechamento, usando política e valor
+                  
+                  ggplot(dados_long_citytotal, aes(x = Valor, y = PoliticasDeFechamento, fill = PoliticasDeFechamento)) +
+                    geom_density_ridges(alpha = 0.7, scale = 0.9) +  # Ajusta transparência e altura das cristas
+                    scale_x_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 1)) +  # Ajusta o eixo X
+                    scale_fill_viridis_d() +  # Usa a paleta viridis para as cores
+                    labs(title = "Distribuição do Grau das Políticas de Fechamento",
+                         x = "Valor",
+                         y = "Políticas de Fechamento",
+                         fill = "Políticas de Fechamento") +
+                    theme_minimal()
+                  
+                 
+# Gráfico de linhas com Facets para comparação das mudanças de grau das políticas de fechamento
+                  
+                  ggplot(dados_long_citytotal, aes(x = Date, y = Valor, color = PoliticasDeFechamento)) +
+                    geom_line() +
+                    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 1)) +
+                    scale_color_viridis_d() +
+                    facet_wrap(~ PoliticasDeFechamento, ncol = 2) +  # Separa as políticas em painéis
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Data",
+                         y = "Grau",
+                         color = "Políticas de Fechamento") +
+                    theme_minimal()
+                  
+# Gráfico de areas com Facets para comparação das mudanças de grau das políticas de fechamento                   
+                  
+                  ggplot(dados_long_citytotal, aes(x = Date, y = Valor, fill = PoliticasDeFechamento)) +
+                    geom_area(alpha = 0.7) +  # Cria as áreas com transparência
+                    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 1)) +  # Ajusta o eixo Y
+                    scale_fill_viridis_d() +  # Usa a paleta viridis para as cores
+                    facet_wrap(~ PoliticasDeFechamento, ncol = 2) +  # Separa as políticas em painéis
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Data",
+                         y = "Valor",
+                         fill = "Políticas de Fechamento") +
+                    theme_minimal()
+                  
+                  
+# Heatmap para comparação das mudanças de grau das políticas de fechamento
+                  
+                  ggplot(dados_long_citytotal, aes(x = Date, y = PoliticasDeFechamento, fill = Valor)) +
+                    geom_tile() +  # Cria o heatmap
+                    scale_fill_viridis_c(direction = -1) +  # Inverte a paleta de cores
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Data",
+                         y = "Políticas de Fechamento",
+                         fill = "Valor") +
+                    theme_minimal()       
+                  
+                  
+                  
+                 ggplot(dados_long_citytotal, aes(x = Date)) +
+                    geom_area(aes(y = Valor, fill = Políticas de Fechamento, alpha = 0.7)) +  # Cria as áreas com transparência
+                    scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, by = 1)) +  # Ajusta o eixo Y
+                    scale_fill_viridis_d() +  # Usa a paleta viridis para as cores +
+                    
+                    
+                      
+                    facet_wrap(~ PoliticasDeFechamento, ncol = 2) +  # Separa as políticas em painéis
+                    labs(title = "Variação das Políticas de Fechamento ao Longo do Tempo",
+                         x = "Data",
+                         y = "Valor",
+                         fill = "Políticas de Fechamento") +
+                    theme_minimal()
+                    
+# Comparando a mudança do Grau da C1M_School.closing com os casos diários de infecção por COVID-19, geom_area x geom_line                    
+                    
+                 ggplot(dados_citytotal, aes(x = Date)) + 
+                   # Grafico de area
+                   geom_area(aes(y = C1M_School.closing), fill = C1M_School.closing, alpha = 0.5) +  # Área preenchida
+                   # Grafico de linhas
+                   geom_line(aes(y = Casos_Diarios / max(Casos_Diarios) * max(C1M_School.closing), 
+                                 color = "red", size = 0.1, linetype = "solid")) +
+                   scale_y_continuous(
+                     name = "Valor da Política",  # Eixo Y principal
+                     sec.axis = sec_axis(~ . * max(dados_citytotal$Casos_Diarios) / max(dados_citytotal$C1M_School.closing), 
+                                         name = "Casos Diários de COVID")  # Eixo Y secundário 
+                 
+                  
+                 
+                 
+                 
+                 
+                 
+                 
+                 
+                 
+                 
+                 ggplot(dados_long_citytotal, aes(x = Date)) + 
+                     # Grafico de area
+                    geom_area(aes(y = Valor, fill = "Valor das Políticas"), alpha = 0.5) +  # Área preenchida
+                    # Grafico de linhas
+                    geom_line(aes(y = Casos_Diarios / max(Casos_Diarios) * max(Valor), 
+                                  color = "red", size = 0.1, linetype = "solid")) +  # Linha para casos diários
+                                # Facets
+                                facet_wrap(~ PoliticasDeFechamento, ncol = 2) +  # Separa as políticas em painéis
+                                # Ajusta o eixo Y secundário
+                                scale_y_continuous(
+                                  name = "Valor das Políticas",  # Eixo Y principal
+                                  sec.axis = sec_axis(~ . * max(dados_long_citytotal$Casos_Diarios) / max(dados_long_citytotal$Valor), 
+                                                      name = "Casos Diários de COVID")  # Eixo Y secundário
+                                ) +
+                                # Formatação
+                                scale_fill_manual(values = c("Valor das Políticas" = "steelblue")) +  # Cor para a área
+                                labs(title = "Variação das Políticas de Fechamento e Casos de COVID",
+                                     x = "Data",
+                                     y = "Valor das Políticas",
+                                     fill = NULL,
+                                     color = NULL) +
+                                theme_minimal() +
+                                theme(legend.position = "bottom") # Move a legenda para baixo
